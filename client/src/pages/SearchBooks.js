@@ -2,21 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Jumbotron, Container, Col, Form, Button, Card, CardColumns } from 'react-bootstrap';
 
 import Auth from '../utils/auth';
-import { searchGoogleBooks } from '../utils/API';
+import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 import { useMutation } from '@apollo/react-hooks';
 import { SAVE_BOOK } from '../utils/mutations';
-import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 
 const SearchBooks = () => {
   // create state for holding returned google api data
   const [searchedBooks, setSearchedBooks] = useState([]);
   // create state for holding our search field data
   const [searchInput, setSearchInput] = useState('');
+
   // create state to hold saved bookId values
   const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
-  // create state to hold call to action message
-  const [message, setMessage] = useState('Search for a book to begin')
-  // saveBook Mutation
+
   const [saveBook, { error }] = useMutation(SAVE_BOOK);
 
   // set up useEffect hook to save `savedBookIds` list to localStorage on component unmount
@@ -34,42 +32,24 @@ const SearchBooks = () => {
     }
 
     try {
-      const response = await searchGoogleBooks(searchInput);
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${searchInput}`);
 
       if (!response.ok) {
-        setMessage('No books found. Try another search')
         throw new Error('something went wrong!');
       }
 
       const { items } = await response.json();
 
-      let uniqueItems = [];
-      let ids = []
+      const bookData = items.map((book) => ({
+        bookId: book.id,
+        authors: book.volumeInfo.authors || ['No author to display'],
+        title: book.volumeInfo.title,
+        description: book.volumeInfo.description,
+        image: book.volumeInfo.imageLinks?.thumbnail || '',
+      }));
 
-      for (let i = 0; i < items.length; i++) {
-        if (!ids.includes(items[i].id)) {
-          uniqueItems.push(items[i]);
-        }
-        
-        ids.push(items[i].id);
-      }
-
-      if (!uniqueItems) {
-        setMessage('No books found. Try another search')
-        setSearchedBooks([]);
-      } else {
-        const bookData = uniqueItems.map(({ id, volumeInfo, saleInfo, accessInfo }) => ({
-          bookId: id,
-          authors: volumeInfo.authors || ['No author to display'],
-          title: volumeInfo.title || '',
-          description: volumeInfo.description || `published: ${volumeInfo.publishedDate}, ${volumeInfo.publisher}. Tags: ${volumeInfo.categories ? volumeInfo.categories : 'none'}.` || '',
-          image: volumeInfo.imageLinks?.thumbnail || '',
-          link: saleInfo.buyLink || accessInfo.webReaderLink
-        }));
-
-        setSearchedBooks(bookData);
-        setSearchInput('');
-      }
+      setSearchedBooks(bookData);
+      setSearchInput('');
     } catch (err) {
       console.error(err);
     }
@@ -88,17 +68,10 @@ const SearchBooks = () => {
     }
 
     try {
-      await saveBook({
-        variables: {
-          input: { ...bookToSave }
-        }
+      const { data } = await saveBook({
+        variables: { bookData: { ...bookToSave } },
       });
-
-      if (error) {
-        throw new Error('something went wrong!');
-      }
-
-      // if book successfully saves to user's account, save book id to state
+      console.log(savedBookIds);
       setSavedBookIds([...savedBookIds, bookToSave.bookId]);
     } catch (err) {
       console.error(err);
@@ -136,17 +109,17 @@ const SearchBooks = () => {
         <h2>
           {searchedBooks.length
             ? `Viewing ${searchedBooks.length} results:`
-            : message}
+            : 'Search for a book to begin'}
         </h2>
         <CardColumns>
-          {searchedBooks && searchedBooks.map((book) => {
+          {searchedBooks.map((book) => {
             return (
               <Card key={book.bookId} border='dark'>
                 {book.image ? (
                   <Card.Img src={book.image} alt={`The cover for ${book.title}`} variant='top' />
                 ) : null}
                 <Card.Body>
-                  <Card.Title><a target="_blank" rel="noreferrer" href={book.link}>{book.title}</a></Card.Title>
+                  <Card.Title>{book.title}</Card.Title>
                   <p className='small'>Authors: {book.authors}</p>
                   <Card.Text>{book.description}</Card.Text>
                   {Auth.loggedIn() && (
@@ -155,7 +128,7 @@ const SearchBooks = () => {
                       className='btn-block btn-info'
                       onClick={() => handleSaveBook(book.bookId)}>
                       {savedBookIds?.some((savedBookId) => savedBookId === book.bookId)
-                        ? 'Already saved!'
+                        ? 'This book has already been saved!'
                         : 'Save this Book!'}
                     </Button>
                   )}
