@@ -18,8 +18,10 @@ Book search is built using:
   - JSON Web Tokens for user authentication
 <br>
 
-### [Go To Deployed Application](https://book-search-3000.herokuapp.com/)
-![screen-shot](./assets/screen-shot.png)
+### [Deployed Application](https://book-search-3000.herokuapp.com/)
+
+### Screenshot
+<img src = "client\assets\appscreenshot.gif" alt = "generator preview">
 
 ## Questions
 
