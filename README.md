@@ -21,7 +21,7 @@ Book search is built using:
 ### [Deployed Application](https://book-search-3000.herokuapp.com/)
 
 ### Screenshot
-<img src = "client\assets\appscreenshot.gif" alt = "generator preview">
+![screen-shot](./client/assets/appScreenshot.jpg)
 
 ## Questions
 
